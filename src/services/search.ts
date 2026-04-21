@@ -26,7 +26,7 @@ import { Track, SearchResult } from '../types';
 // YOUR SELF-HOSTED PROXY URL
 // For local testing: http://localhost:3000
 // For production, deploy to Render and use that URL here:
-const PROXY_URL = 'http://localhost:3000'; // e.g. 'https://vynl-proxy.onrender.com'
+const PROXY_URL = 'https://vynl-twh9.onrender.com'; // e.g. 'https://vynl-proxy.onrender.com'
 
 /**
  * Thrown by resolveAudioUrl() when the source URL is in a format iOS
