@@ -1,90 +1,70 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Pressable,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useThemeStore } from '../store/useThemeStore';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Play, Pause, SkipForward } from 'lucide-react-native';
+import { Vinyl } from './vynl';
+import { body, vynl, layout, shadow } from '../theme';
 import { useNowPlaying, usePlaybackControls } from '../hooks/useTrackPlayer';
-import { spacing, borderRadius, typography, layout } from '../theme';
 
 interface MiniPlayerProps {
   onPress: () => void;
 }
 
+const cleanTitle = (s: string) => s.split(' - ')[0].split('(')[0].trim();
+
 export const MiniPlayer: React.FC<MiniPlayerProps> = ({ onPress }) => {
-  const { colors } = useThemeStore();
   const { currentTrack, isPlaying, isLoading, progress } = useNowPlaying();
   const { togglePlayPause, skipToNext } = usePlaybackControls();
 
-  if (!currentTrack) {
-    return null;
-  }
+  if (!currentTrack) return null;
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.background,
-          shadowColor: colors.shadowDark || '#A3B1C6',
-        },
-      ]}
+    <Pressable
       onPress={onPress}
-      activeOpacity={0.95}
+      style={[styles.container, shadow.md]}
     >
-      {/* Progress bar */}
-      <View style={[styles.progressBar, { backgroundColor: colors.textMuted }]}>
-        <View
-          style={[
-            styles.progressFill,
-            { width: `${progress * 100}%`, backgroundColor: colors.text },
-          ]}
-        />
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${Math.max(2, progress * 100)}%` }]} />
       </View>
-
       <View style={styles.content}>
-        {/* Thumbnail */}
-        <Image
-          source={{ uri: currentTrack.thumbnailUrl }}
-          style={styles.thumbnail}
-          resizeMode="cover"
-        />
-
-        {/* Track Info */}
+        <Vinyl size={44} spinning={isPlaying} />
         <View style={styles.info}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-            {currentTrack.title}
+          <Text
+            style={[body(13, { weight: 'semibold' }), { color: vynl.ink }]}
+            numberOfLines={1}
+          >
+            {cleanTitle(currentTrack.title)}
           </Text>
-          <Text style={[styles.artist, { color: colors.textSecondary }]} numberOfLines={1}>
+          <Text style={[body(11), { color: vynl.muted, marginTop: 2 }]} numberOfLines={1}>
             {currentTrack.artist}
           </Text>
         </View>
-
-        {/* Controls */}
-        <View style={styles.controls}>
-          <Pressable
-            style={styles.controlButton}
-            onPress={togglePlayPause}
-            disabled={isLoading}
-          >
-            <Ionicons
-              name={isLoading ? 'hourglass' : isPlaying ? 'pause' : 'play'}
-              size={28}
-              color={colors.text}
-            />
-          </Pressable>
-
-          <Pressable style={styles.controlButton} onPress={skipToNext}>
-            <Ionicons name="play-skip-forward" size={24} color={colors.text} />
-          </Pressable>
-        </View>
+        <Pressable
+          hitSlop={8}
+          onPress={(e) => {
+            e.stopPropagation();
+            togglePlayPause();
+          }}
+          disabled={isLoading}
+          style={styles.playBtn}
+        >
+          {isPlaying ? (
+            <Pause size={18} color={vynl.surface} fill={vynl.surface} />
+          ) : (
+            <Play size={18} color={vynl.surface} fill={vynl.surface} style={{ marginLeft: 2 }} />
+          )}
+        </Pressable>
+        <Pressable
+          hitSlop={8}
+          onPress={(e) => {
+            e.stopPropagation();
+            skipToNext();
+          }}
+          style={styles.control}
+        >
+          <SkipForward size={18} color={vynl.ink} fill={vynl.ink} />
+        </Pressable>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -92,53 +72,34 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: layout.tabBarHeight,
-    left: 0,
-    right: 0,
-    height: layout.miniPlayerHeight,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
+    left: 12,
+    right: 12,
+    height: 68,
+    borderRadius: 22,
+    backgroundColor: vynl.surface,
     overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
   },
-  progressBar: {
+  progressTrack: {
     height: 2,
     width: '100%',
+    backgroundColor: vynl.bg,
   },
-  progressFill: {
-    height: '100%',
-  },
+  progressFill: { height: '100%', backgroundColor: vynl.ink },
   content: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    gap: 10,
+    paddingHorizontal: 12,
   },
-  thumbnail: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.sm,
-  },
-  info: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  title: {
-    ...typography.body,
-    fontWeight: '500',
-  },
-  artist: {
-    ...typography.caption,
-    marginTop: 2,
-  },
-  controls: {
-    flexDirection: 'row',
+  info: { flex: 1, minWidth: 0 },
+  playBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: vynl.ink,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  controlButton: {
-    padding: spacing.sm,
-  },
+  control: { padding: 6 },
 });

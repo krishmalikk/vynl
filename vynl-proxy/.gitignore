@@ -1,0 +1,4 @@
+node_modules
+yt-dlp
+*-player-script.js
+.env

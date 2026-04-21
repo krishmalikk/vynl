@@ -1,38 +1,54 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
+  Pressable,
   StyleSheet,
-  TouchableOpacity,
   Dimensions,
+  GestureResponderEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
-import { useThemeStore } from '../store/useThemeStore';
+import {
+  ChevronDown,
+  MoreHorizontal,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+  Play,
+  Pause,
+  Repeat,
+  Repeat1,
+  List,
+  Heart,
+  Share2,
+  Radio,
+} from 'lucide-react-native';
+import { body, display, kicker, vynl, shadow } from '../theme';
+import { Vinyl, IconButton } from '../components/vynl';
 import { useNowPlaying, usePlaybackControls } from '../hooks/useTrackPlayer';
-import { VinylPlayer } from '../components/VinylPlayer';
-import { NeumorphicButton } from '../components/NeumorphicButton';
-import { spacing, typography } from '../theme';
+import { useLibrary } from '../hooks/useLibrary';
+import { useThemeStore } from '../store/useThemeStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TABLE_SIZE = Math.min(SCREEN_WIDTH - 64, 300);
+const DISC_INSET = 22;
+const DISC_SIZE = TABLE_SIZE - DISC_INSET * 2;
 
 export const NowPlayingScreen: React.FC = () => {
-  const { colors } = useThemeStore();
   const navigation = useNavigation<any>();
   const {
     currentTrack,
     isPlaying,
     isLoading,
-    duration,
     progress,
-    shuffleEnabled,
-    repeatMode,
+    duration,
+    position,
     positionFormatted,
     durationFormatted,
+    repeatMode,
+    shuffleEnabled,
   } = useNowPlaying();
-
   const {
     togglePlayPause,
     skipToNext,
@@ -41,284 +57,296 @@ export const NowPlayingScreen: React.FC = () => {
     toggleShuffle,
     cycleRepeatMode,
   } = usePlaybackControls();
+  const { tracks: library, addTrack, removeTrack, isInLibrary } = useLibrary();
+
+  const progressBarRef = useRef<View>(null);
+  const [progressBarWidth, setProgressBarWidth] = React.useState(0);
+
+  const handleSeek = (e: GestureResponderEvent) => {
+    if (!progressBarWidth || !duration) return;
+    const x = Math.max(0, Math.min(progressBarWidth, e.nativeEvent.locationX));
+    const ratio = x / progressBarWidth;
+    seekTo(ratio * duration);
+  };
 
   if (!currentTrack) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.emptyContainer}>
-          <Ionicons name="musical-notes" size={64} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            Nothing playing
-          </Text>
-        </View>
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <Radio size={40} color={vynl.muted} />
+        <Text style={[display(20), { color: vynl.ink, marginTop: 16 }]}>
+          Nothing playing
+        </Text>
       </SafeAreaView>
     );
   }
 
-  const getRepeatIcon = (): keyof typeof Ionicons.glyphMap => {
-    return 'repeat';
-  };
+  const liked = isInLibrary(currentTrack.id);
+  const remaining = Math.max(0, duration - position);
+  const remainingFormatted = `-${formatTime(remaining)}`;
+
+  const RepeatIcon = repeatMode === 'one' ? Repeat1 : Repeat;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-down" size={28} color={colors.text} />
-        </TouchableOpacity>
-
-        <View style={styles.headerDots}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
+        <IconButton size="sm" variant="ghost" onPress={() => navigation.goBack()}>
+          <ChevronDown size={22} color={vynl.ink} />
+        </IconButton>
+        <View style={styles.crumb}>
+          <Text style={[kicker(9), { color: vynl.muted }]}>Playing from</Text>
+          <Text style={[body(12, { weight: 'semibold' }), { color: vynl.ink }]}>
+            Your queue
+          </Text>
         </View>
+        <IconButton size="sm" variant="ghost">
+          <MoreHorizontal size={20} color={vynl.ink} />
+        </IconButton>
       </View>
 
-      {/* Vinyl Player */}
-      <View style={styles.vinylContainer}>
-        <VinylPlayer
-          artworkUrl={currentTrack.thumbnailUrl}
-          isPlaying={isPlaying}
-        />
-      </View>
-
-      {/* Track Info */}
-      <View style={styles.infoContainer}>
-        <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-          {currentTrack.title}
-        </Text>
-        <Text style={[styles.artist, { color: colors.textSecondary }]} numberOfLines={1}>
-          {currentTrack.artist}
-        </Text>
-      </View>
-
-      {/* Waveform / Progress Visualization */}
-      <View style={styles.waveformContainer}>
-        <View style={styles.waveform}>
-          {Array.from({ length: 7 }, (_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.waveformBar,
-                {
-                  height: [16, 24, 32, 40, 32, 24, 16][i],
-                  backgroundColor: i < Math.floor(progress * 7) ? colors.text : colors.textMuted,
-                },
-              ]}
+      {/* Turntable */}
+      <View style={styles.turntableWrap}>
+        <View style={styles.turntableBase}>
+          <View style={styles.discHole}>
+            <Vinyl
+              size={DISC_SIZE}
+              spinning={isPlaying}
+              spinDurationMs={10000}
+              labelColor={vynl.labelCream}
+              labelAccentColor={vynl.labelAccent}
             />
-          ))}
+          </View>
+          <Tonearm playing={isPlaying} />
         </View>
-        <Text style={[styles.timeText, { color: colors.text }]}>
-          {positionFormatted} / {durationFormatted}
+      </View>
+
+      {/* Track info */}
+      <View style={styles.info}>
+        <Text
+          style={[display(24, { weight: 'semibold' }), styles.title]}
+          numberOfLines={1}
+        >
+          {cleanTitle(currentTrack.title)}
         </Text>
+        <Pressable
+          onPress={() =>
+            navigation.navigate('ArtistDetail', { artistName: currentTrack.artist })
+          }
+        >
+          <Text style={[body(13), { color: vynl.inkSoft, marginTop: 4 }]} numberOfLines={1}>
+            {currentTrack.artist}
+          </Text>
+        </Pressable>
       </View>
 
-      {/* Hidden Slider for seek functionality */}
-      <View style={styles.sliderContainer}>
-        <Slider
-          style={styles.slider}
-          value={progress}
-          minimumValue={0}
-          maximumValue={1}
-          minimumTrackTintColor="transparent"
-          maximumTrackTintColor="transparent"
-          thumbTintColor="transparent"
-          onSlidingComplete={(value) => seekTo(value * duration)}
-        />
-      </View>
-
-      {/* Neumorphic Controls */}
-      <View style={styles.controlsContainer}>
-        {/* Previous */}
-        <NeumorphicButton
-          size={56}
-          onPress={skipToPrevious}
-          intensity="light"
+      {/* Progress */}
+      <View style={styles.progressWrap}>
+        <View
+          ref={progressBarRef}
+          onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
+          style={styles.progressTrack}
+          onStartShouldSetResponder={() => true}
+          onResponderRelease={handleSeek}
         >
-          <Ionicons name="play-skip-back" size={24} color={colors.text} />
-        </NeumorphicButton>
-
-        {/* Play/Pause - Larger */}
-        <NeumorphicButton
-          size={80}
-          onPress={togglePlayPause}
-          intensity="medium"
-        >
-          <Ionicons
-            name={isLoading ? 'hourglass' : isPlaying ? 'pause' : 'play'}
-            size={32}
-            color={colors.text}
+          <View
+            style={[styles.progressFill, { width: `${Math.max(0, progress * 100)}%` }]}
           />
-        </NeumorphicButton>
-
-        {/* Next */}
-        <NeumorphicButton
-          size={56}
-          onPress={skipToNext}
-          intensity="light"
-        >
-          <Ionicons name="play-skip-forward" size={24} color={colors.text} />
-        </NeumorphicButton>
+          <View style={[styles.progressKnob, { left: `${Math.max(0, progress * 100)}%` }]} />
+        </View>
+        <View style={styles.progressLabels}>
+          <Text style={[body(11), styles.timeText]}>{positionFormatted}</Text>
+          <Text style={[body(11), styles.timeText]}>{remainingFormatted || `-${durationFormatted}`}</Text>
+        </View>
       </View>
 
-      {/* Bottom Actions */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity
-          style={styles.bottomAction}
-          onPress={toggleShuffle}
-        >
-          <Ionicons
-            name="shuffle"
-            size={22}
-            color={shuffleEnabled ? colors.text : colors.textMuted}
+      {/* Transport */}
+      <View style={styles.transport}>
+        <Pressable onPress={toggleShuffle} style={styles.ghostControl}>
+          <Shuffle
+            size={20}
+            color={shuffleEnabled ? vynl.ink : vynl.muted}
+            strokeWidth={shuffleEnabled ? 2.6 : 2}
           />
-        </TouchableOpacity>
+        </Pressable>
+        <Pressable onPress={skipToPrevious} style={styles.ghostControl}>
+          <SkipBack size={26} color={vynl.ink} fill={vynl.ink} />
+        </Pressable>
+        <Pressable onPress={togglePlayPause} style={styles.playBtn} disabled={isLoading}>
+          {isPlaying ? (
+            <Pause size={24} color={vynl.surface} fill={vynl.surface} />
+          ) : (
+            <Play size={24} color={vynl.surface} fill={vynl.surface} style={{ marginLeft: 3 }} />
+          )}
+        </Pressable>
+        <Pressable onPress={skipToNext} style={styles.ghostControl}>
+          <SkipForward size={26} color={vynl.ink} fill={vynl.ink} />
+        </Pressable>
+        <Pressable onPress={cycleRepeatMode} style={styles.ghostControl}>
+          <RepeatIcon
+            size={20}
+            color={repeatMode !== 'off' ? vynl.ink : vynl.muted}
+            strokeWidth={repeatMode !== 'off' ? 2.6 : 2}
+          />
+        </Pressable>
+      </View>
 
-        <TouchableOpacity style={styles.bottomAction}>
-          <Ionicons name="heart-outline" size={22} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.bottomAction}
+      {/* Utility row */}
+      <View style={styles.utilityRow}>
+        <Pressable
+          style={styles.utilityBtn}
           onPress={() => navigation.navigate('Queue')}
         >
-          <Ionicons name="list" size={22} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.bottomAction}
-          onPress={cycleRepeatMode}
+          <List size={20} color={vynl.inkSoft} />
+        </Pressable>
+        <Pressable
+          style={styles.utilityBtn}
+          onPress={() => {
+            if (liked) removeTrack(currentTrack.id);
+            else addTrack(currentTrack);
+          }}
         >
-          <View>
-            <Ionicons
-              name={getRepeatIcon()}
-              size={22}
-              color={repeatMode !== 'off' ? colors.text : colors.textMuted}
-            />
-            {repeatMode === 'one' && (
-              <View style={[styles.repeatOneBadge, { backgroundColor: colors.text }]}>
-                <Text style={styles.repeatOneText}>1</Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
+          <Heart
+            size={20}
+            color={liked ? vynl.labelAccent : vynl.inkSoft}
+            fill={liked ? vynl.labelAccent : 'transparent'}
+          />
+        </Pressable>
+        <Pressable style={styles.utilityBtn}>
+          <Share2 size={20} color={vynl.inkSoft} />
+        </Pressable>
+        <Pressable style={styles.utilityBtn}>
+          <Radio size={20} color={vynl.inkSoft} />
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 };
 
+const Tonearm: React.FC<{ playing: boolean }> = ({ playing }) => {
+  return (
+    <View style={styles.tonearmContainer} pointerEvents="none">
+      <View style={styles.tonearmPivot} />
+      <View
+        style={[
+          styles.tonearmBar,
+          { transform: [{ rotate: playing ? '30deg' : '10deg' }] },
+        ]}
+      />
+    </View>
+  );
+};
+
+const cleanTitle = (s: string) => s.split(' - ')[0].split('(')[0].trim();
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    ...typography.body,
-    marginTop: spacing.md,
-  },
+  container: { flex: 1, backgroundColor: vynl.bg },
+  center: { justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
-  headerButton: {
-    padding: spacing.sm,
-  },
-  headerDots: {
-    padding: spacing.sm,
-  },
-  vinylContainer: {
+  crumb: { alignItems: 'center' },
+  turntableWrap: { alignItems: 'center', paddingVertical: 24 },
+  turntableBase: {
+    width: TABLE_SIZE,
+    height: TABLE_SIZE,
+    borderRadius: 28,
+    backgroundColor: vynl.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
+    ...shadow.md,
   },
-  infoContainer: {
-    paddingHorizontal: spacing.xl,
-    marginTop: spacing.md,
-    alignItems: 'center',
+  discHole: { width: DISC_SIZE, height: DISC_SIZE },
+  tonearmContainer: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    alignItems: 'flex-end',
+    width: 110,
   },
-  title: {
-    ...typography.h2,
-    textAlign: 'center',
+  tonearmPivot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: vynl.ink2,
+    borderWidth: 2,
+    borderColor: vynl.bg,
+    zIndex: 2,
+    alignSelf: 'flex-end',
   },
-  artist: {
-    ...typography.body,
-    textAlign: 'center',
-    marginTop: spacing.xs,
+  tonearmBar: {
+    position: 'absolute',
+    top: 9,
+    right: 6,
+    width: 90,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: vynl.ink2,
+    transformOrigin: 'right center',
   },
-  waveformContainer: {
-    alignItems: 'center',
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  waveform: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  info: { paddingHorizontal: 32, alignItems: 'center' },
+  title: { color: vynl.ink, textAlign: 'center' },
+  progressWrap: { paddingHorizontal: 32, paddingTop: 20 },
+  progressTrack: {
+    height: 3,
+    backgroundColor: 'rgba(11,11,14,0.12)',
+    borderRadius: 2,
+    position: 'relative',
     justifyContent: 'center',
-    gap: 4,
-    height: 44,
   },
-  waveformBar: {
-    width: 4,
+  progressFill: {
+    height: '100%',
+    backgroundColor: vynl.ink,
     borderRadius: 2,
   },
+  progressKnob: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: vynl.ink,
+    marginLeft: -5,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
   timeText: {
-    ...typography.body,
-    marginTop: spacing.md,
-    fontWeight: '500',
+    color: vynl.inkSoft,
+    fontVariant: ['tabular-nums'],
   },
-  sliderContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '50%',
-    opacity: 0,
-    height: 40,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  controlsContainer: {
+  transport: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.lg,
-    gap: spacing.xl,
-    marginTop: spacing.sm,
+    justifyContent: 'space-between',
+    paddingHorizontal: 32,
+    paddingTop: 24,
   },
-  bottomActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  ghostControl: { padding: 10 },
+  playBtn: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: vynl.ink,
     alignItems: 'center',
-    gap: spacing.xl,
-    paddingBottom: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    justifyContent: 'center',
+  },
+  utilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
     marginTop: 'auto',
+    paddingHorizontal: 32,
+    paddingBottom: 24,
   },
-  bottomAction: {
-    padding: spacing.md,
-  },
-  repeatOneBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  repeatOneText: {
-    fontSize: 7,
-    fontWeight: '700',
-    color: '#fff',
-  },
+  utilityBtn: { padding: 12 },
 });

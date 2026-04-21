@@ -35,7 +35,10 @@ export const useThemeStore = create<ThemeStore>()(
       partialize: (state) => ({ theme: state.theme }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          state.colors = getThemeColors(state.theme);
+          // Dark mode disabled in the redesign. Force light regardless of what
+          // is persisted so users who previously toggled dark don't get broken.
+          state.theme = 'light';
+          state.colors = getThemeColors('light');
         }
       },
     }

@@ -2,30 +2,41 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
-  Switch,
+  Pressable,
   Alert,
   TextInput,
   Modal,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Star,
+  CheckCircle,
+  Moon,
+  CloudUpload,
+  CloudDownload,
+  Trash2,
+  Info,
+  Copy,
+  ChevronRight,
+  LogOut,
+} from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
-import { useThemeStore } from '../store/useThemeStore';
+import { body, display, kicker, vynl, shadow, layout } from '../theme';
+import { PillButton, IconButton } from '../components/vynl';
 import { backupRestore } from '../services/storage';
 import { useSubscriptionStore } from '../services/iap';
+import { useAppStore } from '../store/useAppStore';
 import { SubscriptionModal } from '../components/SubscriptionModal';
-import { spacing, borderRadius, typography, layout } from '../theme';
 
 export const SettingsScreen: React.FC = () => {
-  const { colors, theme, toggleTheme } = useThemeStore();
   const { isSubscribed, plan } = useSubscriptionStore();
+  const signOut = useAppStore((s) => s.signOut);
 
-  const [showBackupModal, setShowBackupModal] = useState(false);
-  const [showRestoreModal, setShowRestoreModal] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showBackup, setShowBackup] = useState(false);
+  const [showRestore, setShowRestore] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
   const [backupCode, setBackupCode] = useState('');
   const [restoreCode, setRestoreCode] = useState('');
 
@@ -33,37 +44,36 @@ export const SettingsScreen: React.FC = () => {
     try {
       const code = await backupRestore.createBackup();
       setBackupCode(code);
-      setShowBackupModal(true);
-    } catch (error) {
+      setShowBackup(true);
+    } catch {
       Alert.alert('Error', 'Failed to create backup');
     }
   };
 
-  const handleCopyBackup = async () => {
+  const copyBackup = async () => {
     await Clipboard.setStringAsync(backupCode);
     Alert.alert('Copied', 'Backup code copied to clipboard');
   };
 
   const handleRestore = async () => {
     if (!restoreCode.trim()) {
-      Alert.alert('Error', 'Please enter a backup code');
+      Alert.alert('Error', 'Please paste a backup code');
       return;
     }
-
-    const success = await backupRestore.restoreFromBackup(restoreCode.trim());
-    if (success) {
-      Alert.alert('Success', 'Your library and playlists have been restored');
-      setShowRestoreModal(false);
+    const ok = await backupRestore.restoreFromBackup(restoreCode.trim());
+    if (ok) {
+      Alert.alert('Restored', 'Your library has been restored');
+      setShowRestore(false);
       setRestoreCode('');
     } else {
-      Alert.alert('Error', 'Invalid backup code');
+      Alert.alert('Invalid code', 'That code could not be read');
     }
   };
 
-  const handleClearData = () => {
+  const confirmClear = () => {
     Alert.alert(
-      'Clear All Data',
-      'This will delete your library, playlists, and all settings. This cannot be undone.',
+      'Clear all data',
+      'This deletes your library, playlists, and settings. Cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -71,368 +81,286 @@ export const SettingsScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             await backupRestore.clearAllData();
-            Alert.alert('Done', 'All data has been cleared');
+            Alert.alert('Done', 'All data cleared');
           },
         },
       ]
     );
   };
 
-  const SettingItem = ({
-    icon,
-    title,
-    subtitle,
-    onPress,
-    rightElement,
-    destructive,
-  }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    title: string;
-    subtitle?: string;
-    onPress?: () => void;
-    rightElement?: React.ReactNode;
-    destructive?: boolean;
-  }) => (
-    <TouchableOpacity
-      style={[styles.settingItem, { borderBottomColor: colors.border }]}
-      onPress={onPress}
-      disabled={!onPress}
-    >
-      <View style={[styles.settingIcon, { backgroundColor: colors.surfaceLight }]}>
-        <Ionicons
-          name={icon}
-          size={20}
-          color={destructive ? colors.error : colors.primary}
-        />
-      </View>
-      <View style={styles.settingContent}>
-        <Text
-          style={[
-            styles.settingTitle,
-            { color: destructive ? colors.error : colors.text },
-          ]}
-        >
-          {title}
-        </Text>
-        {subtitle && (
-          <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
-            {subtitle}
-          </Text>
-        )}
-      </View>
-      {rightElement || (
-        onPress && (
-          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-        )
-      )}
-    </TouchableOpacity>
-  );
+  const confirmSignOut = () => {
+    Alert.alert('Sign out', 'Sign out of vynl?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
+    ]);
+  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Subscription */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
-          Subscription
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Text style={[display(40, { weight: 'semibold' }), styles.title]}>
+        Settings
+        <Text
+          style={[
+            display(40, { italic: true, weight: 'semibold' }),
+            { color: vynl.labelAccent },
+          ]}
+        >
+          .
         </Text>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <SettingItem
-            icon={isSubscribed ? 'checkmark-circle' : 'star'}
-            title={isSubscribed ? 'Premium Active' : 'Remove Ads'}
-            subtitle={isSubscribed ? `${plan} subscription` : 'Subscribe to remove all ads'}
-            onPress={() => setShowSubscriptionModal(true)}
-          />
-        </View>
+      </Text>
 
-        {/* Appearance */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
-          Appearance
-        </Text>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <SettingItem
-            icon="moon"
-            title="Dark Mode"
-            subtitle={theme === 'dark' ? 'On' : 'Off'}
-            rightElement={
-              <Switch
-                value={theme === 'dark'}
-                onValueChange={toggleTheme}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor="#fff"
-              />
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Section title="Subscription">
+          <Row
+            icon={isSubscribed ? <CheckCircle size={18} color={vynl.ink} /> : <Star size={18} color={vynl.ink} />}
+            title={isSubscribed ? 'Premium active' : 'Remove ads'}
+            subtitle={
+              isSubscribed
+                ? `${plan} subscription`
+                : 'Subscribe to remove all ads'
             }
+            onPress={() => setShowSubscription(true)}
           />
-        </View>
+        </Section>
 
-        {/* Backup & Restore */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
-          Backup & Restore
-        </Text>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <SettingItem
-            icon="cloud-upload"
-            title="Create Backup"
+        <Section title="Appearance">
+          <Row
+            icon={<Moon size={18} color={vynl.muted} />}
+            title="Dark mode"
+            subtitle="Coming soon"
+            disabled
+          />
+        </Section>
+
+        <Section title="Backup & restore">
+          <Row
+            icon={<CloudUpload size={18} color={vynl.ink} />}
+            title="Create backup"
             subtitle="Generate a code to save your library"
             onPress={handleCreateBackup}
           />
-          <SettingItem
-            icon="cloud-download"
-            title="Restore from Backup"
+          <Row
+            icon={<CloudDownload size={18} color={vynl.ink} />}
+            title="Restore from backup"
             subtitle="Import your library from a backup code"
-            onPress={() => setShowRestoreModal(true)}
+            onPress={() => setShowRestore(true)}
           />
-        </View>
+        </Section>
 
-        {/* Data */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
-          Data
-        </Text>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <SettingItem
-            icon="trash"
-            title="Clear All Data"
+        <Section title="Data">
+          <Row
+            icon={<Trash2 size={18} color={vynl.labelAccent} />}
+            title="Clear all data"
             subtitle="Delete library, playlists, and settings"
-            onPress={handleClearData}
             destructive
+            onPress={confirmClear}
           />
-        </View>
+        </Section>
 
-        {/* About */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
-          About
-        </Text>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <SettingItem
-            icon="information-circle"
+        <Section title="Account">
+          <Row
+            icon={<LogOut size={18} color={vynl.labelAccent} />}
+            title="Sign out"
+            destructive
+            onPress={confirmSignOut}
+          />
+        </Section>
+
+        <Section title="About">
+          <Row
+            icon={<Info size={18} color={vynl.ink} />}
             title="Version"
-            rightElement={
-              <Text style={[styles.versionText, { color: colors.textSecondary }]}>
-                1.0.0
-              </Text>
+            trailing={
+              <Text style={[body(13), { color: vynl.muted }]}>1.0.0</Text>
             }
           />
-        </View>
+        </Section>
       </ScrollView>
 
-      {/* Backup Modal */}
-      <Modal
-        visible={showBackupModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowBackupModal(false)}
-      >
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Your Backup Code
+      <Modal visible={showBackup} transparent animationType="fade" onRequestClose={() => setShowBackup(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={[display(20), { color: vynl.ink, textAlign: 'center' }]}>
+              Your backup code
             </Text>
-            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              Save this code to restore your library later
+            <Text style={[body(12), { color: vynl.muted, textAlign: 'center' }]}>
+              Save this to restore your library later.
             </Text>
-            <View style={[styles.codeContainer, { backgroundColor: colors.surfaceLight }]}>
-              <Text
-                style={[styles.codeText, { color: colors.text }]}
-                selectable
-                numberOfLines={4}
-              >
-                {backupCode.substring(0, 100)}...
+            <View style={styles.codeBox}>
+              <Text style={[body(11), styles.codeText]} selectable numberOfLines={4}>
+                {backupCode.slice(0, 100)}…
               </Text>
             </View>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.primary }]}
-                onPress={handleCopyBackup}
-              >
-                <Ionicons name="copy" size={20} color="#fff" />
-                <Text style={styles.modalButtonText}>Copy Code</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.surfaceLight }]}
-                onPress={() => setShowBackupModal(false)}
-              >
-                <Text style={[styles.modalButtonTextDark, { color: colors.text }]}>
-                  Close
-                </Text>
-              </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <PillButton
+                label="Copy"
+                onPress={copyBackup}
+                leadingIcon={<Copy size={14} color={vynl.surface} />}
+                fullWidth
+                style={{ flex: 1 }}
+              />
+              <PillButton
+                label="Close"
+                variant="secondary"
+                onPress={() => setShowBackup(false)}
+                fullWidth
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Restore Modal */}
-      <Modal
-        visible={showRestoreModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowRestoreModal(false)}
-      >
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Restore from Backup
+      <Modal visible={showRestore} transparent animationType="fade" onRequestClose={() => setShowRestore(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={[display(20), { color: vynl.ink, textAlign: 'center' }]}>
+              Restore from backup
             </Text>
-            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              Paste your backup code below
+            <Text style={[body(12), { color: vynl.muted, textAlign: 'center' }]}>
+              Paste your backup code below.
             </Text>
             <TextInput
-              style={[
-                styles.restoreInput,
-                { backgroundColor: colors.surfaceLight, color: colors.text },
-              ]}
-              placeholder="Paste backup code here..."
-              placeholderTextColor={colors.textMuted}
+              style={[body(13), styles.restoreInput]}
+              placeholder="Paste backup code…"
+              placeholderTextColor={vynl.muted}
               value={restoreCode}
               onChangeText={setRestoreCode}
               multiline
-              numberOfLines={4}
             />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.surfaceLight }]}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <PillButton
+                label="Cancel"
+                variant="secondary"
                 onPress={() => {
-                  setShowRestoreModal(false);
+                  setShowRestore(false);
                   setRestoreCode('');
                 }}
-              >
-                <Text style={[styles.modalButtonTextDark, { color: colors.text }]}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.primary }]}
-                onPress={handleRestore}
-              >
-                <Text style={styles.modalButtonText}>Restore</Text>
-              </TouchableOpacity>
+                fullWidth
+                style={{ flex: 1 }}
+              />
+              <PillButton label="Restore" onPress={handleRestore} fullWidth style={{ flex: 1 }} />
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Subscription Modal */}
       <SubscriptionModal
-        visible={showSubscriptionModal}
-        onClose={() => setShowSubscriptionModal(false)}
+        visible={showSubscription}
+        onClose={() => setShowSubscription(false)}
       />
     </SafeAreaView>
   );
 };
 
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
+  title,
+  children,
+}) => (
+  <>
+    <Text style={[kicker(10), styles.sectionLabel]}>{title}</Text>
+    <View style={styles.sectionBody}>{children}</View>
+  </>
+);
+
+const Row: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+  trailing?: React.ReactNode;
+}> = ({ icon, title, subtitle, onPress, disabled, destructive, trailing }) => (
+  <Pressable
+    style={styles.row}
+    onPress={onPress}
+    disabled={disabled || !onPress}
+  >
+    <View style={styles.rowIcon}>{icon}</View>
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <Text
+        style={[
+          body(14, { weight: 'semibold' }),
+          { color: destructive ? vynl.labelAccent : vynl.ink },
+          disabled && { color: vynl.muted },
+        ]}
+      >
+        {title}
+      </Text>
+      {subtitle ? (
+        <Text style={[body(11), { color: vynl.muted, marginTop: 2 }]}>
+          {subtitle}
+        </Text>
+      ) : null}
+    </View>
+    {trailing ??
+      (onPress && !disabled ? <ChevronRight size={16} color={vynl.muted} /> : null)}
+  </Pressable>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1, backgroundColor: vynl.bg },
+  title: { color: vynl.ink, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  scroll: {
+    paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 20,
   },
-  title: {
-    ...typography.h1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+  sectionLabel: {
+    color: vynl.muted,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 6,
   },
-  scrollContent: {
-    paddingBottom: layout.miniPlayerHeight + layout.tabBarHeight + spacing.xl,
-  },
-  sectionHeader: {
-    ...typography.caption,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  section: {
-    marginHorizontal: spacing.md,
-    borderRadius: borderRadius.lg,
+  sectionBody: {
+    marginHorizontal: 16,
+    backgroundColor: vynl.surface,
+    borderRadius: 18,
     overflow: 'hidden',
+    ...shadow.sm,
   },
-  settingItem: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
+    padding: 14,
+    gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: vynl.bg,
   },
-  settingIcon: {
+  rowIcon: {
     width: 36,
     height: 36,
-    borderRadius: borderRadius.md,
-    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: vynl.surface2,
     alignItems: 'center',
-  },
-  settingContent: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  settingTitle: {
-    ...typography.body,
-  },
-  settingSubtitle: {
-    ...typography.caption,
-    marginTop: 2,
-  },
-  versionText: {
-    ...typography.body,
+    justifyContent: 'center',
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: 'rgba(11,11,14,0.45)',
     alignItems: 'center',
-    padding: spacing.lg,
+    justifyContent: 'center',
+    padding: 20,
   },
   modalContent: {
     width: '100%',
     maxWidth: 340,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
+    backgroundColor: vynl.surface,
+    borderRadius: 24,
+    padding: 20,
+    gap: 14,
   },
-  modalTitle: {
-    ...typography.h3,
-    textAlign: 'center',
+  codeBox: {
+    backgroundColor: vynl.bg,
+    borderRadius: 14,
+    padding: 14,
   },
-  modalSubtitle: {
-    ...typography.bodySmall,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  codeContainer: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
-  },
-  codeText: {
-    ...typography.caption,
-    fontFamily: 'monospace',
-  },
+  codeText: { color: vynl.ink, fontFamily: 'Geist_400Regular' },
   restoreInput: {
-    ...typography.body,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
-    minHeight: 100,
+    backgroundColor: vynl.bg,
+    borderRadius: 14,
+    padding: 14,
+    color: vynl.ink,
+    minHeight: 96,
     textAlignVertical: 'top',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  modalButton: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
-  },
-  modalButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  modalButtonTextDark: {
-    ...typography.body,
-    fontWeight: '600',
   },
 });

@@ -1,29 +1,43 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../store/useThemeStore';
-import { spacing, typography } from '../theme';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { body, display, kicker, vynl } from '../theme';
 
 interface SectionHeaderProps {
   title: string;
+  titleItalicSuffix?: string;
+  kickerText?: string;
   onSeeAll?: () => void;
 }
 
 export const SectionHeader: React.FC<SectionHeaderProps> = ({
   title,
+  titleItalicSuffix,
+  kickerText,
   onSeeAll,
 }) => {
-  const { colors } = useThemeStore();
-
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      {onSeeAll && (
-        <TouchableOpacity onPress={onSeeAll}>
-          <Text style={[styles.seeAll, { color: colors.textSecondary }]}>
-            See All
+      <View style={{ flex: 1 }}>
+        {kickerText ? (
+          <Text style={[kicker(10), { color: vynl.muted, marginBottom: 6 }]}>
+            {kickerText}
           </Text>
-        </TouchableOpacity>
-      )}
+        ) : null}
+        <Text style={[display(20), { color: vynl.ink }]}>
+          {title}
+          {titleItalicSuffix ? (
+            <Text style={[display(20, { italic: true }), { color: vynl.labelAccent }]}>
+              {' '}
+              {titleItalicSuffix}
+            </Text>
+          ) : null}
+        </Text>
+      </View>
+      {onSeeAll ? (
+        <Pressable onPress={onSeeAll}>
+          <Text style={[body(13), { color: vynl.inkSoft }]}>See all</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 };
@@ -31,15 +45,9 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  title: {
-    ...typography.h3,
-  },
-  seeAll: {
-    ...typography.bodySmall,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
 });

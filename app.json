@@ -10,20 +10,22 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0a0a0a"
+      "backgroundColor": "#EDEAF2"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourcompany.musicapp",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "NSAppleMusicUsageDescription": "This app needs access to play music in the background."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0a0a0a"
+        "backgroundColor": "#EDEAF2"
       },
       "package": "com.yourcompany.musicapp",
       "edgeToEdgeEnabled": true,
@@ -32,6 +34,8 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

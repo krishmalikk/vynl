@@ -6,36 +6,32 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import TrackPlayer from 'react-native-track-player';
+import * as SplashScreen from 'expo-splash-screen';
 
 import { HomeScreen } from './src/screens/HomeScreen';
-import { SearchScreen } from './src/screens/SearchScreen';
+import { ExploreScreen } from './src/screens/ExploreScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
-import { PlaylistsScreen } from './src/screens/PlaylistsScreen';
 import { PlaylistDetailScreen } from './src/screens/PlaylistDetailScreen';
 import { NowPlayingScreen } from './src/screens/NowPlayingScreen';
 import { QueueScreen } from './src/screens/QueueScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { AuthScreen } from './src/screens/AuthScreen';
+import { ArtistDetailScreen } from './src/screens/ArtistDetailScreen';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { useThemeStore } from './src/store/useThemeStore';
 import { usePlayerStore } from './src/store/usePlayerStore';
+import { useAppStore } from './src/store/useAppStore';
 import { useTrackPlayerSync, usePlaybackErrorHandler } from './src/hooks/useTrackPlayer';
 import { setupPlayer } from './src/services/player';
-import { layout } from './src/theme';
+import { useFonts } from './src/theme/useFonts';
+import { vynl } from './src/theme';
+import { subscribeToAuth } from './src/services/firebaseAuth';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
-
-// Playlists stack navigator
-function PlaylistsNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="PlaylistsList" component={PlaylistsScreen} />
-      <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
-    </Stack.Navigator>
-  );
-}
 
 // Mini player wrapper component with navigation
 function MiniPlayerWrapper() {
@@ -44,9 +40,7 @@ function MiniPlayerWrapper() {
 
   if (!currentTrack) return null;
 
-  return (
-    <MiniPlayer onPress={() => navigation.navigate('NowPlaying')} />
-  );
+  return <MiniPlayer onPress={() => navigation.navigate('NowPlaying')} />;
 }
 
 // Main tabs with mini player - 3 icon navigation
@@ -58,15 +52,14 @@ function TabNavigator() {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarIcon: ({ focused, color, size }) => {
+          tabBarIcon: ({ focused, color }) => {
             let iconName: keyof typeof Ionicons.glyphMap;
 
             switch (route.name) {
               case 'Home':
                 iconName = focused ? 'home' : 'home-outline';
                 break;
-              case 'Discover':
-                // Planet/Saturn icon for Discover
+              case 'Explore':
                 iconName = focused ? 'planet' : 'planet-outline';
                 break;
               case 'Library':
@@ -76,25 +69,23 @@ function TabNavigator() {
                 iconName = 'help';
             }
 
-            // Thin line icons, 24px for better visibility
             return <Ionicons name={iconName} size={24} color={color} />;
           },
-          tabBarActiveTintColor: colors.text,
-          tabBarInactiveTintColor: colors.textMuted,
-          tabBarShowLabel: false, // Hide labels for minimal design
+          tabBarActiveTintColor: vynl.ink,
+          tabBarInactiveTintColor: vynl.muted,
+          tabBarShowLabel: false,
           tabBarStyle: {
             position: 'absolute',
-            backgroundColor: 'rgba(245, 245, 245, 0.95)',
+            backgroundColor: 'rgba(246, 244, 250, 0.95)',
             borderTopWidth: 0,
             height: 80,
             paddingBottom: 25,
             paddingTop: 12,
-            marginHorizontal: 0,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
-            shadowColor: '#000',
+            shadowColor: vynl.ink,
             shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.08,
+            shadowOpacity: 0.06,
             shadowRadius: 12,
             elevation: 10,
             overflow: 'hidden',
@@ -102,37 +93,12 @@ function TabNavigator() {
         })}
       >
         <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Discover" component={SearchScreen} />
+        <Tab.Screen name="Explore" component={ExploreScreen} />
         <Tab.Screen name="Library" component={LibraryScreen} />
       </Tab.Navigator>
 
       <MiniPlayerWrapper />
     </View>
-  );
-}
-
-// Root navigator with modals
-function RootNavigator() {
-  return (
-    <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      <RootStack.Screen name="Main" component={TabNavigator} />
-      <RootStack.Screen
-        name="NowPlaying"
-        component={NowPlayingScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <RootStack.Screen
-        name="Queue"
-        component={QueueScreen}
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-    </RootStack.Navigator>
   );
 }
 
@@ -146,6 +112,11 @@ function TrackPlayerSync() {
 export default function App() {
   const { colors, theme } = useThemeStore();
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const { fontsLoaded } = useFonts();
+  const isAuthed = useAppStore((s) => s.isAuthed);
+  const authReady = useAppStore((s) => s.authReady);
+  const setAuthState = useAppStore((s) => s.setAuthState);
+  const markAuthReady = useAppStore((s) => s.markAuthReady);
 
   useEffect(() => {
     const initPlayer = async () => {
@@ -156,10 +127,27 @@ export default function App() {
     initPlayer();
   }, []);
 
-  if (!isPlayerReady) {
+  // Subscribe to Firebase auth state. Fires immediately with null if Firebase
+  // isn't configured yet, so `authReady` flips fast in both cases.
+  useEffect(() => {
+    const unsubscribe = subscribeToAuth((user) => {
+      setAuthState(user);
+      markAuthReady();
+    });
+    return unsubscribe;
+  }, [setAuthState, markAuthReady]);
+
+  // Hide splash once everything is ready
+  useEffect(() => {
+    if (fontsLoaded && isPlayerReady && authReady) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, isPlayerReady, authReady]);
+
+  if (!fontsLoaded || !isPlayerReady || !authReady) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.loadingContainer, { backgroundColor: vynl.bg }]}>
+        <ActivityIndicator size="large" color={vynl.ink} />
       </View>
     );
   }
@@ -173,14 +161,14 @@ export default function App() {
         />
         <NavigationContainer
           theme={{
-            dark: theme === 'dark',
+            dark: false,
             colors: {
-              primary: colors.primary,
-              background: colors.background,
-              card: colors.surface,
-              text: colors.text,
-              border: colors.border,
-              notification: colors.primary,
+              primary: vynl.ink,
+              background: vynl.bg,
+              card: vynl.surface,
+              text: vynl.ink,
+              border: 'transparent',
+              notification: vynl.labelAccent,
             },
             fonts: {
               regular: { fontFamily: 'System', fontWeight: '400' },
@@ -191,7 +179,51 @@ export default function App() {
           }}
         >
           <TrackPlayerSync />
-          <RootNavigator />
+          <RootStack.Navigator screenOptions={{ headerShown: false }}>
+            {isAuthed ? (
+              <>
+                <RootStack.Screen name="Main" component={TabNavigator} />
+                <RootStack.Screen
+                  name="NowPlaying"
+                  component={NowPlayingScreen}
+                  options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+                />
+                <RootStack.Screen
+                  name="Queue"
+                  component={QueueScreen}
+                  options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+                />
+                <RootStack.Screen
+                  name="PlaylistDetail"
+                  component={PlaylistDetailScreen}
+                  options={{ animation: 'slide_from_right' }}
+                />
+                <RootStack.Screen
+                  name="ArtistDetail"
+                  component={ArtistDetailScreen}
+                  options={{ animation: 'slide_from_right' }}
+                />
+                <RootStack.Screen
+                  name="Settings"
+                  component={SettingsScreen}
+                  options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+                />
+              </>
+            ) : (
+              <>
+                <RootStack.Screen
+                  name="Welcome"
+                  component={WelcomeScreen}
+                  options={{ animation: 'fade' }}
+                />
+                <RootStack.Screen
+                  name="Auth"
+                  component={AuthScreen}
+                  options={{ animation: 'slide_from_right' }}
+                />
+              </>
+            )}
+          </RootStack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -199,12 +231,6 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

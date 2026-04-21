@@ -28,13 +28,9 @@ export const useTrackPlayerSync = () => {
 
   // Sync playback state
   useEffect(() => {
-    const state = playbackState.state;
+    const state = playbackState.state as unknown as string | undefined;
     setIsPlaying(state === State.Playing);
-    setIsLoading(
-      state === State.Loading ||
-      state === State.Buffering ||
-      state === State.Connecting
-    );
+    setIsLoading(state === 'loading' || state === 'buffering');
   }, [playbackState.state, setIsPlaying, setIsLoading]);
 
   // Sync progress
