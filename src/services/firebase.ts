@@ -1,27 +1,37 @@
 /**
  * Firebase Service for Playlist Sharing
  *
- * This file provides playlist sharing functionality via Firebase.
- * To use this:
- * 1. Create a Firebase project at https://console.firebase.google.com
- * 2. Enable Firestore Database
- * 3. Enable Dynamic Links (or use custom deep links)
- * 4. Install @react-native-firebase/app and @react-native-firebase/firestore
- * 5. Add your firebase config
- *
- * For now, this provides a mock implementation for testing.
+ * Uses Firestore when `src/config/firebaseConfig.ts` is filled in, otherwise
+ * falls back to an in-memory Map so the dev-skip flow still works.
  */
 
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  Firestore,
+} from 'firebase/firestore';
 import { Playlist, Track, SharedPlaylist } from '../types';
 import { playlistStorage, getTracksByIds } from './storage';
+import { isFirebaseConfigured } from '../config/firebaseConfig';
+import { getFirebaseApp } from './firebaseApp';
 
-// ============ CONFIGURATION ============
-// Replace with your Firebase config when ready
-const FIREBASE_ENABLED = false;
 const SHARE_BASE_URL = 'https://yourapp.com/playlist/';
+const SHARED_PLAYLISTS_COLLECTION = 'sharedPlaylists';
 
-// ============ MOCK STORAGE ============
-// In-memory storage for demo (replace with Firebase Firestore)
+const FIREBASE_ENABLED = isFirebaseConfigured();
+
+let db: Firestore | null = null;
+const getDb = (): Firestore | null => {
+  if (db) return db;
+  const app = getFirebaseApp();
+  if (!app) return null;
+  db = getFirestore(app);
+  return db;
+};
+
+// In-memory fallback for when Firebase config hasn't been pasted in yet.
 const mockSharedPlaylists = new Map<string, SharedPlaylist>();
 
 // Generate a short shareable ID
@@ -59,11 +69,13 @@ export const sharePlaylist = async (playlistId: string): Promise<string | null> 
       createdAt: Date.now(),
     };
 
-    if (FIREBASE_ENABLED) {
-      // TODO: Upload to Firebase Firestore
-      // await firestore().collection('sharedPlaylists').doc(shareId).set(sharedPlaylist);
+    const firestore = FIREBASE_ENABLED ? getDb() : null;
+    if (firestore) {
+      await setDoc(
+        doc(firestore, SHARED_PLAYLISTS_COLLECTION, shareId),
+        sharedPlaylist
+      );
     } else {
-      // Mock storage
       mockSharedPlaylists.set(shareId, sharedPlaylist);
     }
 
@@ -79,17 +91,14 @@ export const sharePlaylist = async (playlistId: string): Promise<string | null> 
  */
 export const getSharedPlaylist = async (shareId: string): Promise<SharedPlaylist | null> => {
   try {
-    if (FIREBASE_ENABLED) {
-      // TODO: Fetch from Firebase Firestore
-      // const doc = await firestore().collection('sharedPlaylists').doc(shareId).get();
-      // if (doc.exists) {
-      //   return doc.data() as SharedPlaylist;
-      // }
-      return null;
-    } else {
-      // Mock storage
-      return mockSharedPlaylists.get(shareId) || null;
+    const firestore = FIREBASE_ENABLED ? getDb() : null;
+    if (firestore) {
+      const snap = await getDoc(
+        doc(firestore, SHARED_PLAYLISTS_COLLECTION, shareId)
+      );
+      return snap.exists() ? (snap.data() as SharedPlaylist) : null;
     }
+    return mockSharedPlaylists.get(shareId) || null;
   } catch (error) {
     console.error('Error getting shared playlist:', error);
     return null;
@@ -171,38 +180,3 @@ export const handleDeepLink = async (url: string): Promise<{
   };
 };
 
-// ============ FIREBASE SETUP INSTRUCTIONS ============
-/*
-To enable Firebase sharing:
-
-1. Install Firebase:
-   npx expo install @react-native-firebase/app @react-native-firebase/firestore
-
-2. Create a Firebase project and add iOS/Android apps
-
-3. Download and add config files:
-   - iOS: GoogleService-Info.plist to ios/
-   - Android: google-services.json to android/app/
-
-4. Initialize Firebase in this file:
-   import firestore from '@react-native-firebase/firestore';
-
-5. Set FIREBASE_ENABLED = true above
-
-6. Create Firestore security rules:
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /sharedPlaylists/{playlistId} {
-         allow read: if true;
-         allow create: if request.resource.data.keys().hasAll(['id', 'name', 'tracks', 'createdAt']);
-       }
-     }
-   }
-
-7. For Dynamic Links (optional):
-   npx expo install @react-native-firebase/dynamic-links
-   Configure in Firebase Console > Dynamic Links
-
-8. Update SHARE_BASE_URL to your dynamic link domain
-*/

@@ -1,19 +1,16 @@
 /**
- * Firebase project config for the vynl web app.
+ * Firebase project config for the vynl app.
  *
- * Paste the config object from your Firebase console:
- *   console.firebase.google.com → Project settings → Your apps → Web app → SDK setup and configuration
- *
- * These values are public identifiers (NOT secrets). They're safe to commit, but you
- * may still want to gitignore this file if you prefer per-env configs.
+ * These values are public identifiers (NOT secrets). Security is enforced by
+ * Firebase security rules, not by hiding these values.
  */
 export const firebaseConfig = {
-  apiKey: 'PASTE_API_KEY',
-  authDomain: 'PASTE_AUTH_DOMAIN',
-  projectId: 'PASTE_PROJECT_ID',
-  storageBucket: 'PASTE_STORAGE_BUCKET',
-  messagingSenderId: 'PASTE_MESSAGING_SENDER_ID',
-  appId: 'PASTE_APP_ID',
+  apiKey: 'AIzaSyDZhk_riY8OIjDI21eGpJ0saeRXWJN1MBU',
+  authDomain: 'vynl-95525.firebaseapp.com',
+  projectId: 'vynl-95525',
+  storageBucket: 'vynl-95525.firebasestorage.app',
+  messagingSenderId: '673507731053',
+  appId: '1:673507731053:web:8fd54dbc80089c87bb4164',
 };
 
 /**

@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import {
   initializeAuth,
   getAuth,
@@ -11,20 +10,19 @@ import {
   Auth,
   User,
 } from 'firebase/auth';
-import { firebaseConfig, isFirebaseConfigured } from '../config/firebaseConfig';
+import { isFirebaseConfigured } from '../config/firebaseConfig';
+import { getFirebaseApp } from './firebaseApp';
 
-let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 
 /**
- * Lazily initialize Firebase. Returns null if config hasn't been filled in yet,
- * so callers can gracefully fall back to the local dev flow.
+ * Lazily initialize Firebase Auth. Returns null if config hasn't been filled in
+ * yet, so callers can gracefully fall back to the local dev flow.
  */
 const getAuthInstance = (): Auth | null => {
-  if (!isFirebaseConfigured()) return null;
   if (auth) return auth;
-
-  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const app = getFirebaseApp();
+  if (!app) return null;
 
   try {
     auth = initializeAuth(app, {
