@@ -35,14 +35,34 @@ app.get('/api/audio', async (req, res) => {
     console.log(`[Proxy] Extracting audio for videoId: ${videoId} using play-dl`);
     const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
     
-    // Get stream info - this is MUCH faster than yt-dlp
-    const streamInfo = await play.stream(youtubeUrl, {
-      quality: 2, // Highest audio quality
-      discordPlayerCompatibility: true // Helps with some stream formats
+    // Set a custom user agent to look more like a real browser
+    // This is a common trick to bypass basic bot detection
+    const userAgents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+    ];
+    const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+
+    // Get video info first - this often helps "warm up" the connection
+    const videoInfo = await play.video_info(youtubeUrl, {
+      requestOptions: {
+        headers: {
+          'User-Agent': randomUA
+        }
+      }
     });
 
-    // Get video info for metadata
-    const videoInfo = await play.video_info(youtubeUrl);
+    // Get stream info
+    const streamInfo = await play.stream(youtubeUrl, {
+      quality: 2, 
+      discordPlayerCompatibility: true,
+      requestOptions: {
+        headers: {
+          'User-Agent': randomUA
+        }
+      }
+    });
     
     const responseData = {
       title: videoInfo.video_details.title,
