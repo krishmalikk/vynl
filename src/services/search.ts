@@ -52,19 +52,35 @@ export const searchTracks = async (
   query: string,
   pageToken?: string
 ): Promise<SearchResult> => {
-  // ═══════════════════════════════════════════════════════════════
-  // YOUR YOUTUBE SEARCH IMPLEMENTATION HERE
-  // ═══════════════════════════════════════════════════════════════
+  if (!query) return { tracks: [], nextPageToken: undefined };
 
-  void query;
-  void pageToken;
+  try {
+    const url = new URL(`${PROXY_URL}/api/search`);
+    url.searchParams.append('q', query);
+    if (pageToken) url.searchParams.append('pageToken', pageToken);
 
-  console.warn('searchTracks search logic not fully implemented - returning mock data with real YouTube IDs');
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Proxy search failed: ${response.status} ${errorText}`);
+    }
 
-  return {
-    tracks: getMockTracks(),
-    nextPageToken: undefined,
-  };
+    const data = await response.json();
+    return {
+      tracks: data.tracks || [],
+      nextPageToken: data.nextPageToken,
+    };
+  } catch (error) {
+    console.error(`[SearchService] Error searching tracks:`, error);
+    return {
+      tracks: getMockTracks().filter(t => 
+        t.title.toLowerCase().includes(query.toLowerCase()) || 
+        t.artist.toLowerCase().includes(query.toLowerCase())
+      ),
+      nextPageToken: undefined,
+    };
+  }
 };
 
 /**
@@ -72,7 +88,12 @@ export const searchTracks = async (
  * @returns Array of tracks
  */
 export const getTrendingTracks = async (): Promise<Track[]> => {
-  return getMockTracks();
+  try {
+    const { tracks } = await searchTracks('trending music 2024');
+    return tracks.length > 0 ? tracks : getMockTracks();
+  } catch {
+    return getMockTracks();
+  }
 };
 
 /**
@@ -80,7 +101,12 @@ export const getTrendingTracks = async (): Promise<Track[]> => {
  * @returns Array of tracks
  */
 export const getNewReleases = async (): Promise<Track[]> => {
-  return getMockTracks().slice(0, 5);
+  try {
+    const { tracks } = await searchTracks('new music releases');
+    return tracks.length > 0 ? tracks.slice(0, 10) : getMockTracks();
+  } catch {
+    return getMockTracks().slice(0, 5);
+  }
 };
 
 /**
