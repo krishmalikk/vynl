@@ -26,7 +26,7 @@ import { Track, SearchResult } from '../types';
 // YOUR SELF-HOSTED PROXY URL
 // For local testing: http://localhost:3000
 // For production, deploy to Render and use that URL here:
-const PROXY_URL = 'https://vynl-twh9.onrender.com'; // e.g. 'https://vynl-proxy.onrender.com'
+const PROXY_URL = 'http://localhost:3000'; // e.g. 'https://vynl-proxy.onrender.com'
 
 /**
  * Thrown by resolveAudioUrl() when the source URL is in a format iOS
@@ -158,20 +158,35 @@ export interface ArtistSummary {
 }
 
 /**
- * Returns a mock artist summary derived from the mock track list.
+ * Returns an artist summary from the proxy.
  */
 export const getArtist = async (artistName: string): Promise<ArtistSummary> => {
-  const all = getMockTracks();
-  const topTracks = all.filter((t) => t.artist === artistName);
-  const padded = topTracks.length > 0 ? topTracks : all.slice(0, 3);
-  const listeners = (artistName.length * 7.3).toFixed(1) + 'M';
-  return {
-    name: artistName,
-    monthlyListeners: listeners,
-    albumCount: Math.max(1, artistName.length % 12),
-    trackCount: padded.length * 12,
-    topTracks: padded,
-  };
+  try {
+    const url = new URL(`${PROXY_URL}/api/artist`);
+    url.searchParams.append('name', artistName);
+
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      throw new Error(`Proxy artist lookup failed: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[SearchService] Error getting artist:`, error);
+    // Fallback
+    const all = getMockTracks();
+    const topTracks = all.filter((t) => t.artist === artistName);
+    const padded = topTracks.length > 0 ? topTracks : all.slice(0, 3);
+    const listeners = (artistName.length * 7.3).toFixed(1) + 'M';
+    return {
+      name: artistName,
+      monthlyListeners: listeners,
+      albumCount: Math.max(1, artistName.length % 12),
+      trackCount: padded.length * 12,
+      topTracks: padded,
+    };
+  }
 };
 
 // ============ MOCK DATA WITH VALID YOUTUBE IDs ============

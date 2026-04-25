@@ -185,6 +185,60 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
+// Artist detail endpoint
+app.get('/api/artist', async (req, res) => {
+  const { name } = req.query;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Artist name is required' });
+  }
+
+  try {
+    if (!yt) await initYouTube();
+
+    console.log(`[Proxy] Getting details for artist: ${name}`);
+    const search = await yt.search(name, { type: 'channel' });
+    const channel = search.channels[0];
+
+    if (!channel) {
+      return res.status(404).json({ error: 'Artist not found' });
+    }
+
+    // Get channel details
+    const channelInfo = await yt.getChannel(channel.id);
+    
+    // Get some videos from the artist
+    const videos = await channelInfo.getVideos();
+    
+    const topTracks = videos.videos
+      .filter(v => v.type === 'Video')
+      .slice(0, 10)
+      .map(v => ({
+        id: `yt_${v.id}`,
+        sourceId: v.id,
+        title: v.title.text,
+        artist: name,
+        thumbnailUrl: v.thumbnails[0]?.url,
+        duration: v.duration.seconds,
+        audioUrl: '',
+      }));
+
+    res.json({
+      name: channelInfo.metadata.title,
+      monthlyListeners: (Math.random() * 20 + 5).toFixed(1) + 'M', // Mock listeners
+      albumCount: Math.floor(Math.random() * 10) + 2,
+      trackCount: topTracks.length * 8,
+      topTracks,
+    });
+  } catch (error) {
+    console.error(`[Proxy] Artist lookup failed: ${error.message}`);
+    res.status(500).json({
+      error: 'Artist lookup failed',
+      message: error.message,
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`[Proxy] Server running on port ${PORT}`);
 });
