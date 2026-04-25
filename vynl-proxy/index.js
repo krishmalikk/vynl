@@ -92,7 +92,7 @@ app.get('/api/audio', async (req, res) => {
       responseData = {
         title: info.basic_info.title,
         artist: info.basic_info.author,
-        thumbnailUrl: info.basic_info.thumbnail[0]?.url,
+        thumbnailUrl: info.basic_info.thumbnail[info.basic_info.thumbnail.length - 1]?.url,
         duration: info.basic_info.duration,
         audioUrl: format.decipher(yt.session),
         format: format.mime_type,
@@ -113,7 +113,7 @@ app.get('/api/audio', async (req, res) => {
       responseData = {
         title: videoInfo.video_details.title,
         artist: videoInfo.video_details.channel.name,
-        thumbnailUrl: videoInfo.video_details.thumbnails[0]?.url,
+        thumbnailUrl: videoInfo.video_details.thumbnails[videoInfo.video_details.thumbnails.length - 1]?.url,
         duration: videoInfo.video_details.durationInSec,
         audioUrl: streamInfo.url,
         format: streamInfo.type,
@@ -167,7 +167,7 @@ app.get('/api/search', async (req, res) => {
         sourceId: v.id,
         title: v.title.text,
         artist: v.author.name,
-        thumbnailUrl: v.thumbnails[0]?.url,
+        thumbnailUrl: v.thumbnails[v.thumbnails.length - 1]?.url,
         duration: v.duration.seconds,
         audioUrl: '',
       }));
@@ -218,7 +218,7 @@ app.get('/api/artist', async (req, res) => {
         sourceId: v.id,
         title: v.title.text,
         artist: name,
-        thumbnailUrl: v.thumbnails[0]?.url,
+        thumbnailUrl: v.thumbnails[v.thumbnails.length - 1]?.url,
         duration: v.duration.seconds,
         audioUrl: '',
       }));
