@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const play = require('play-dl');
 const { Innertube, UniversalCache } = require('youtubei.js');
-const { generate } = require('youtube-po-token-generator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -34,23 +33,11 @@ const initYouTube = async () => {
       client_type: 'TV_EMBEDDED'
     };
 
-    // Support for advanced bypass (PO_TOKEN, VISITOR_DATA)
+    // Support for manual advanced bypass (PO_TOKEN, VISITOR_DATA)
     if (process.env.YOUTUBE_PO_TOKEN && process.env.YOUTUBE_VISITOR_DATA) {
       options.po_token = process.env.YOUTUBE_PO_TOKEN;
       options.visitor_data = process.env.YOUTUBE_VISITOR_DATA;
       console.log('[Proxy] Using PO_TOKEN/VISITOR_DATA from env');
-    } else {
-      try {
-        console.log('[Proxy] Generating PO token automatically...');
-        // Yield the event loop to prevent blocking Render's health checks
-        await new Promise(resolve => setImmediate(resolve));
-        const generated = await generate();
-        options.po_token = generated.poToken;
-        options.visitor_data = generated.visitorData;
-        console.log('[Proxy] PO token generated successfully');
-      } catch (genError) {
-        console.error('[Proxy] Failed to generate PO token automatically:', genError.message);
-      }
     }
 
     // Add cookies if available
@@ -59,8 +46,6 @@ const initYouTube = async () => {
       console.log('[Proxy] Using YouTube cookies for YouTubei.js');
     }
 
-    // Another yield
-    await new Promise(resolve => setImmediate(resolve));
     yt = await Innertube.create(options);
     console.log('[Proxy] YouTubei.js initialized');
 

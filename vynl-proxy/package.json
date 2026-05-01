@@ -10,7 +10,6 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "play-dl": "^1.9.7",
-    "youtube-po-token-generator": "^0.6.0",
     "youtubei.js": "^17.0.1"
   }
 }
