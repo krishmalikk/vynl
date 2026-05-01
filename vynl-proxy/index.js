@@ -30,7 +30,8 @@ const initYouTube = async () => {
   try {
     const options = {
       cache: new UniversalCache(false),
-      generate_session_locally: true
+      generate_session_locally: true,
+      client_type: 'TV_EMBEDDED'
     };
 
     // Support for advanced bypass (PO_TOKEN, VISITOR_DATA)
