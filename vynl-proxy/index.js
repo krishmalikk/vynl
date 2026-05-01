@@ -82,7 +82,15 @@ app.get('/api/audio', async (req, res) => {
     
     // Primary: YouTubei.js
     try {
-      if (!yt) await initYouTube();
+      if (!yt && !isInitializing) await initYouTube();
+      // Wait a moment if still initializing
+      let attempts = 0;
+      while (!yt && attempts < 10) {
+        await new Promise(r => setTimeout(r, 500));
+        attempts++;
+      }
+      
+      if (!yt) throw new Error('YouTubei.js not initialized after waiting');
       
       const info = await yt.getBasicInfo(videoId);
       const format = info.chooseFormat({ type: 'audio', quality: 'best' });
