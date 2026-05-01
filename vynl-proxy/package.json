@@ -4,7 +4,7 @@
   "description": "Optimized Vynl Proxy",
   "main": "index.js",
   "scripts": {
-    "start": "node --max-old-space-size=400 index.js"
+    "start": "node --max-old-space-size=450 index.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

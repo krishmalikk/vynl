@@ -13,8 +13,10 @@ app.use(express.json());
 // Start server IMMEDIATELY to satisfy Render's health check
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Proxy] Server running on port ${PORT}`);
-  // Initialize YouTube logic after the server is up
-  initYouTube();
+  // Give Render 5 seconds to finish its port check before we start heavy initialization
+  setTimeout(() => {
+    initYouTube();
+  }, 5000);
 });
 
 // Initialize YouTubei.js
@@ -24,14 +26,14 @@ let isInitializing = false;
 const initYouTube = async () => {
   if (isInitializing) return;
   isInitializing = true;
-  
+
   try {
     const options = {
       cache: new UniversalCache(false),
       generate_session_locally: true,
-      client_type: 'IOS' // iOS client is much more resilient for audio extraction
+      client_type: 'IOS'
     };
-    
+
     // Support for advanced bypass (PO_TOKEN, VISITOR_DATA)
     if (process.env.YOUTUBE_PO_TOKEN && process.env.YOUTUBE_VISITOR_DATA) {
       options.po_token = process.env.YOUTUBE_PO_TOKEN;
@@ -40,6 +42,8 @@ const initYouTube = async () => {
     } else {
       try {
         console.log('[Proxy] Generating PO token automatically...');
+        // Yield the event loop to prevent blocking Render's health checks
+        await new Promise(resolve => setImmediate(resolve));
         const generated = await generate();
         options.po_token = generated.poToken;
         options.visitor_data = generated.visitorData;
@@ -49,15 +53,17 @@ const initYouTube = async () => {
       }
     }
 
-
     // Add cookies if available
     if (process.env.YOUTUBE_COOKIES) {
       options.cookie = process.env.YOUTUBE_COOKIES;
       console.log('[Proxy] Using YouTube cookies for YouTubei.js');
     }
 
+    // Another yield
+    await new Promise(resolve => setImmediate(resolve));
     yt = await Innertube.create(options);
     console.log('[Proxy] YouTubei.js initialized');
+
     
     // Also set for play-dl fallback
     if (process.env.YOUTUBE_COOKIES) {
