@@ -28,7 +28,8 @@ const initYouTube = async () => {
   try {
     const options = {
       cache: new UniversalCache(false),
-      generate_session_locally: true
+      generate_session_locally: true,
+      client_type: 'IOS' // iOS client is much more resilient for audio extraction
     };
     
     // Support for advanced bypass (PO_TOKEN, VISITOR_DATA)
@@ -47,6 +48,7 @@ const initYouTube = async () => {
         console.error('[Proxy] Failed to generate PO token automatically:', genError.message);
       }
     }
+
 
     // Add cookies if available
     if (process.env.YOUTUBE_COOKIES) {

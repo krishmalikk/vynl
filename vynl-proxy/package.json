@@ -1,24 +1,15 @@
 {
   "name": "vynl-proxy",
   "version": "1.0.0",
-  "description": "",
+  "description": "Optimized Vynl Proxy",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node --max-old-space-size=400 index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "@distube/ytdl-core": "^4.16.12",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "jintr": "^3.3.1",
     "play-dl": "^1.9.7",
-    "youtube-dl-exec": "^3.1.5",
-    "youtube-ext": "^1.1.25",
     "youtube-po-token-generator": "^0.6.0",
     "youtubei.js": "^17.0.1"
   }
