@@ -10,6 +10,13 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Start server IMMEDIATELY to satisfy Render's health check
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[Proxy] Server running on port ${PORT}`);
+  // Initialize YouTube logic after the server is up
+  initYouTube();
+});
+
 // Initialize YouTubei.js
 let yt;
 let isInitializing = false;
@@ -65,7 +72,6 @@ const initYouTube = async () => {
     isInitializing = false;
   }
 };
-initYouTube();
 
 // Simple in-memory cache
 const cache = new Map();
@@ -258,7 +264,11 @@ app.get('/api/artist', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`[Proxy] Server running on port ${PORT}`);
+// Health check for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    youtube: yt ? 'ready' : (isInitializing ? 'initializing' : 'not_started') 
+  });
 });
 
