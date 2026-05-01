@@ -30,8 +30,7 @@ const initYouTube = async () => {
   try {
     const options = {
       cache: new UniversalCache(false),
-      generate_session_locally: true,
-      client_type: 'IOS'
+      generate_session_locally: true
     };
 
     // Support for advanced bypass (PO_TOKEN, VISITOR_DATA)
